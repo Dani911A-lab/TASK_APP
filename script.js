@@ -1,364 +1,391 @@
-const addIcon = document.getElementById("addIcon");
-const cardsContainer = document.getElementById("cardsContainer");
-const filterIcon = document.getElementById("filterIcon");
+const STORAGE_KEY = "tasky_data_v6";
 
-// Crear label de filtro seleccionado
-let activeFilterLabel = document.createElement("span");
-activeFilterLabel.id = "activeFilterLabel";
-activeFilterLabel.style.fontSize = "12px";
-activeFilterLabel.style.color = "#555";
-activeFilterLabel.style.backgroundColor = "#ddd";
-activeFilterLabel.style.padding = "2px 6px";
-activeFilterLabel.style.borderRadius = "6px";
-activeFilterLabel.style.marginRight = "6px";
-activeFilterLabel.style.display = "none"; // oculto inicialmente
-filterIcon.parentElement.insertBefore(activeFilterLabel, filterIcon);
+let state = {
+  lists: [],
+  currentListId: null,
+  archived: [],
+  viewingArchived: false
+};
 
-// Crear menú flotante del filtro
-let filterMenu = document.createElement("div");
-filterMenu.style.position = "absolute";
-filterMenu.style.top = "36px";
-filterMenu.style.right = "0";
-filterMenu.style.backgroundColor = "white";
-filterMenu.style.border = "1px solid #aaa";
-filterMenu.style.borderRadius = "6px";
-filterMenu.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-filterMenu.style.display = "none";
-filterMenu.style.flexDirection = "column";
-filterMenu.style.zIndex = "1500";
-["TODAS", "CUMPLIDAS", "PENDIENTES", "DESTACADAS"].forEach(optionText => {
-  let option = document.createElement("div");
-  option.textContent = optionText;
-  option.style.padding = "6px 12px";
-  option.style.cursor = "pointer";
-  option.addEventListener("mouseenter", () => option.style.backgroundColor = "#f0f0f0");
-  option.addEventListener("mouseleave", () => option.style.backgroundColor = "white");
-  filterMenu.appendChild(option);
-});
-filterIcon.parentElement.appendChild(filterMenu);
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
-filterIcon.addEventListener("click", () => {
-  filterMenu.style.display = filterMenu.style.display === "flex" ? "none" : "flex";
-});
-
-// Función para aplicar filtro
-function applyFilter(value) {
-  activeFilterLabel.textContent = value === "TODAS" ? "" : value;
-  activeFilterLabel.style.display = value === "TODAS" ? "none" : "inline-block";
-  filterMenu.style.display = "none";
-
-  const allSwipeWrappers = document.querySelectorAll(".swipe-wrapper");
-  allSwipeWrappers.forEach(wrapper => {
-    const swipeCard = wrapper.querySelector(".swipe-card");
-
-    if (value === "TODAS") {
-      wrapper.style.display = "flex"; // mostrar todas
-    } else if (value === "CUMPLIDAS") {
-      wrapper.style.display = swipeCard.classList.contains("completed") ? "flex" : "none";
-    } else if (value === "PENDIENTES") {
-      wrapper.style.display = !swipeCard.classList.contains("completed") ? "flex" : "none";
-    } else if (value === "DESTACADAS") {
-      wrapper.style.display = swipeCard.classList.contains("highlighted") ? "flex" : "none";
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      state = JSON.parse(raw);
+      if (!state.lists) state.lists = [];
+      if (!state.archived) state.archived = [];
+    } catch (e) {
+      console.error("Error cargando state:", e);
     }
+  } else {
+    const defaultList = { id: genId('l'), name: "Mis tareas", tasks: [], emoji: "📌" };
+    state.lists = [defaultList];
+    state.currentListId = defaultList.id;
+    state.archived = [];
+    saveState();
+  }
+}
+
+function genId(prefix = 'id') {
+  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function findList(id) {
+  return state.lists.find(l => l.id === id);
+}
+
+/* ---------- Emoji Picker ---------- */
+const popularEmojis = ["👨‍💼","👮","🔒","📌","🚨","⭐","🪙","💵","📂","💼","✒️","📈","⚖️","✈️","📚","👥","🗓️","📦","🍌","🏚️","🏢","🏨","🏦","💧","🚰","💡","🌱"];
+let activePicker = null;
+
+function showEmojiPicker(btn, list) {
+  if (activePicker) activePicker.remove();
+
+  const picker = document.createElement("div");
+  picker.className = "emoji-picker";
+
+  popularEmojis.forEach(emoji => {
+    const span = document.createElement("span");
+    span.textContent = emoji;
+    span.style.cursor = "pointer";
+    span.style.fontSize = "18px";
+    span.style.margin = "3px";
+    span.addEventListener("click", (e) => {
+      e.stopPropagation();
+      list.emoji = emoji;
+      saveState();
+      render();
+      picker.remove();
+      activePicker = null;
+    });
+    picker.appendChild(span);
+  });
+
+  document.body.appendChild(picker);
+  activePicker = picker;
+
+  const rect = btn.getBoundingClientRect();
+  picker.style.position = "absolute";
+  picker.style.top = rect.bottom + window.scrollY + "px";
+  picker.style.left = rect.left + window.scrollX + "px";
+  picker.style.display = "flex";
+  picker.style.flexWrap = "wrap";
+  picker.style.background = "#fff";
+  picker.style.border = "1px solid #ccc";
+  picker.style.padding = "6px";
+  picker.style.borderRadius = "6px";
+  picker.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
+  picker.style.zIndex = 9999;
+
+  setTimeout(() => {
+    window.addEventListener("click", closePickerOnClickOutside);
+  }, 0);
+
+  function closePickerOnClickOutside(e) {
+    if (!picker.contains(e.target) && e.target !== btn) {
+      picker.remove();
+      activePicker = null;
+      window.removeEventListener("click", closePickerOnClickOutside);
+    }
+  }
+}
+
+/* ---------- Render ---------- */
+const listContainer = document.getElementById('list-container');
+const currentListTitle = document.getElementById('current-list-title');
+const tasksEl = document.getElementById('tasks');
+const emptyStateEl = document.getElementById('empty-state');
+const taskInput = document.getElementById('task-input');
+const addTaskBtn = document.getElementById('add-task-btn');
+const addListBtn = document.getElementById('add-list-btn');
+const clearCompletedBtn = document.getElementById('clear-completed');
+
+const listTpl = document.getElementById('list-item-tpl');
+const taskTpl = document.getElementById('task-item-tpl');
+
+function renderLists() {
+  listContainer.innerHTML = '';
+
+  state.lists.forEach(list => {
+    const node = listTpl.content.firstElementChild.cloneNode(true);
+    const renameBtn = node.querySelector('.rename-list');
+    const deleteBtn = node.querySelector('.delete-list');
+    const emojiBtn = node.querySelector('.list-select');
+    const nameSpan = node.querySelector('.list-name');
+
+    emojiBtn.textContent = list.emoji || '📌';
+
+    emojiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      showEmojiPicker(emojiBtn, list);
+    });
+
+    nameSpan.textContent = list.name;
+    if (!state.viewingArchived && list.id === state.currentListId) node.classList.add('active');
+
+    node.addEventListener('click', (e) => {
+      if (e.target === renameBtn || e.target === deleteBtn || e.target === emojiBtn) return;
+      state.currentListId = list.id;
+      state.viewingArchived = false;
+      saveState();
+      render();
+    });
+
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nuevo = prompt('Nuevo nombre de la lista:', list.name);
+      if (nuevo !== null) {
+        list.name = nuevo.trim() || list.name;
+        saveState();
+        render();
+      }
+    });
+
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(`Eliminar la lista "${list.name}" y sus ${list.tasks.length} tareas?`)) return;
+      state.lists = state.lists.filter(l => l.id !== list.id);
+      if (state.currentListId === list.id) state.currentListId = state.lists.length ? state.lists[0].id : null;
+      saveState();
+      render();
+    });
+
+    listContainer.appendChild(node);
+  });
+
+  const archivedBtn = document.createElement('button');
+  archivedBtn.className = 'archived-btn';
+  archivedBtn.innerHTML = `<i class="fa-regular fa-folder"></i> Tareas Archivadas <span class="archived-count">${state.archived.length}</span>`;
+  archivedBtn.addEventListener('click', () => {
+    state.viewingArchived = true;
+    render();
+  });
+  listContainer.appendChild(archivedBtn);
+}
+
+function renderTasks() {
+  tasksEl.innerHTML = '';
+
+  let tasksToRender = [];
+  let title = 'Selecciona una lista';
+
+  const isArchived = state.viewingArchived;
+
+  if (isArchived) {
+    tasksToRender = state.archived;
+    title = 'Tareas Archivadas';
+  } else {
+    const list = findList(state.currentListId);
+    if (!list) {
+      currentListTitle.textContent = title;
+      return;
+    }
+    tasksToRender = list.tasks;
+    title = list.name;
+  }
+
+  currentListTitle.textContent = title;
+
+  if (tasksToRender.length === 0) {
+    emptyStateEl.style.display = 'block';
+    if (!isArchived) {
+      emptyStateEl.innerHTML = `
+        <img src="newproject.png" alt="Nueva lista" style="width:120px; display:block; margin:0 auto;">
+        <span class="empty-message">Empecemos un nuevo proyecto ✨</span>
+      `;
+    } else {
+      emptyStateEl.innerHTML = '';
+    }
+  } else {
+    emptyStateEl.style.display = 'none';
+  }
+
+  tasksToRender.forEach(task => {
+    const node = buildTaskNode(task, findList(task.listId) || {tasks: []}, false);
+    tasksEl.appendChild(node);
   });
 }
 
-// Asignar eventos a las opciones del menú
-Array.from(filterMenu.children).forEach(option => {
-  option.addEventListener("click", () => {
-    applyFilter(option.textContent);
-  });
-});
+function buildTaskNode(task, list, isSubtask) {
+  const node = taskTpl.content.firstElementChild.cloneNode(true);
+  const checkbox = node.querySelector('.task-checkbox');
+  const content = node.querySelector('.task-content');
+  const editBtn = node.querySelector('.edit-task');
+  const deleteBtn = node.querySelector('.delete-task');
 
-addIcon.addEventListener("click", () => {
-  const card = document.createElement("div");
-  card.className = "card";
+  const subBtn = document.createElement("button");
+  subBtn.textContent = "➕";
+  subBtn.title = "Agregar sub-tarea";
+  subBtn.classList.add("subtask-btn");
+  node.querySelector(".task-actions").prepend(subBtn);
 
-  // Input principal
-  const mainInput = document.createElement("input");
-  mainInput.className = "main-input";
-  mainInput.type = "text";
-  mainInput.placeholder = "Principal";
+  content.textContent = task.text;
+  node.dataset.taskId = task.id;
 
-  // Input secundario
-  const secondaryInput = document.createElement("input");
-  secondaryInput.className = "secondary-input";
-  secondaryInput.type = "text";
-  secondaryInput.placeholder = "Secundario";
-
-  // Botón guardar
-  const saveBtn = document.createElement("button");
-  saveBtn.className = "save-btn";
-  saveBtn.textContent = "💾";
-
-  // Botón editar
-  const editBtn = document.createElement("button");
-  editBtn.className = "edit-btn";
-  editBtn.textContent = "✏️";
-  editBtn.style.display = "none";
-
-  // Botón "destacar"
-  const highlightBtn = document.createElement("button");
-  highlightBtn.className = "highlight-btn";
-  highlightBtn.textContent = "☆";
-  highlightBtn.style.fontSize = "16px";
-
-  // Botón detalles
-  const detailsBtn = document.createElement("button");
-  detailsBtn.className = "details-btn";
-  detailsBtn.textContent = "➕ Detalles";
-
-  // Contenedor detalles
-  const detailsContainer = document.createElement("div");
-  detailsContainer.className = "details-container";
-
-  // Apartado 1: Empresas
-  const row1 = document.createElement("div");
-  row1.className = "detail-row";
-  const label1 = document.createElement("label");
-  label1.textContent = "Empresas:";
-  const select1 = document.createElement("select");
-  const placeholderOption1 = document.createElement("option");
-  placeholderOption1.textContent = "Selecciona empresa";
-  placeholderOption1.disabled = true;
-  placeholderOption1.selected = true;
-  select1.appendChild(placeholderOption1);
-  for (let i = 1; i <= 13; i++) {
-    const option = document.createElement("option");
-    option.value = `empresa${i}`;
-    option.textContent = `empresa${i}`;
-    select1.appendChild(option);
+  if (task.done) {
+    checkbox.checked = true;
+    content.classList.add('completed');
+    node.classList.add("completed");
   }
-  const tagsContainer1 = document.createElement("div");
-  tagsContainer1.className = "tags-container";
-  select1.addEventListener("change", () => {
-    const value = select1.value;
-    if (value && !Array.from(tagsContainer1.children).some(span => span.textContent.includes(value))) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = value + " ×";
-      tag.addEventListener("click", () => tag.remove());
-      tagsContainer1.appendChild(tag);
+
+  checkbox.addEventListener('change', () => {
+    task.done = checkbox.checked;
+
+    if (!isSubtask) {
+      const listRef = findList(task.listId) || list;
+
+      if (task.done && !state.archived.some(t => t.id === task.id)) {
+        state.archived.unshift({...task, listId: listRef.id});
+        listRef.tasks = listRef.tasks.filter(t => t.id !== task.id);
+      } else if (!task.done) {
+        const archivedIndex = state.archived.findIndex(t => t.id === task.id);
+        if (archivedIndex > -1) {
+          const originalList = findList(state.archived[archivedIndex].listId);
+          if (originalList) originalList.tasks.unshift(state.archived[archivedIndex]);
+          state.archived.splice(archivedIndex, 1);
+        }
+      }
     }
-    select1.selectedIndex = 0;
+
+    saveState();
+    render();
   });
-  row1.appendChild(label1);
-  row1.appendChild(select1);
-  row1.appendChild(tagsContainer1);
-  detailsContainer.appendChild(row1);
 
-  // Apartado 2: Personas
-  const row2 = document.createElement("div");
-  row2.className = "detail-row";
-  const label2 = document.createElement("label");
-  label2.textContent = "Personas:";
-  const select2 = document.createElement("select");
-  const placeholderOption2 = document.createElement("option");
-  placeholderOption2.textContent = "Selecciona persona";
-  placeholderOption2.disabled = true;
-  placeholderOption2.selected = true;
-  select2.appendChild(placeholderOption2);
-  for (let i = 1; i <= 20; i++) {
-    const option = document.createElement("option");
-    option.value = `persona${i}`;
-    option.textContent = `persona${i}`;
-    select2.appendChild(option);
-  }
-  const tagsContainer2 = document.createElement("div");
-  tagsContainer2.className = "tags-container";
-  select2.addEventListener("change", () => {
-    const value = select2.value;
-    if (value && !Array.from(tagsContainer2.children).some(span => span.textContent.includes(value))) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = value + " ×";
-      tag.addEventListener("click", () => tag.remove());
-      tagsContainer2.appendChild(tag);
-    }
-    select2.selectedIndex = 0;
-  });
-  row2.appendChild(label2);
-  row2.appendChild(select2);
-  row2.appendChild(tagsContainer2);
-  detailsContainer.appendChild(row2);
-
-  // Apartado 3
-  const row3 = document.createElement("div");
-  row3.className = "detail-row";
-  const label3 = document.createElement("label");
-  label3.textContent = "Observaciones:";
-  const input3 = document.createElement("input");
-  input3.type = "text";
-  input3.placeholder = "Detalle Observacion";
-  row3.appendChild(label3);
-  row3.appendChild(input3);
-  detailsContainer.appendChild(row3);
-
-  detailsContainer.style.display = "none";
-
-  // Programar
-  const scheduleLabel = document.createElement("span");
-  scheduleLabel.textContent = "Programar:";
-  scheduleLabel.className = "schedule-label";
-  scheduleLabel.style.marginRight = "4px";
-  scheduleLabel.style.fontSize = "14px";       
-  scheduleLabel.style.color = "#666";          
-
-  const scheduleInput = document.createElement("input");
-  scheduleInput.type = "date";
-  scheduleInput.className = "schedule-input";
-  scheduleInput.style.border = "1px solid #ccc";
-  scheduleInput.style.borderRadius = "6px";
-  scheduleInput.style.backgroundColor = "#f0f0f0"; 
-  scheduleInput.style.padding = "2px 6px";        
-  scheduleInput.style.fontSize = "14px";          
-  scheduleInput.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-
-  const scheduleInfo = document.createElement("span");
-  scheduleInfo.className = "schedule-info";
-  scheduleInfo.style.marginLeft = "8px";
-  scheduleInfo.style.fontWeight = "bold";
-  scheduleInfo.style.fontSize = "14px";           
-  scheduleInfo.style.color = "#333"; 
-
-  scheduleInput.addEventListener("change", () => {
-    if (!scheduleInput.value) { scheduleInfo.textContent = ""; return; }
-    const selectedDate = new Date(scheduleInput.value);
-    const today = new Date();
-    selectedDate.setHours(0,0,0,0);
-    today.setHours(0,0,0,0);
-    const diffTime = selectedDate - today;
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) {
-      scheduleInfo.textContent = "Hoy";
-      scheduleInfo.style.color = "green";
-    } else if (diffDays > 0) {
-      scheduleInfo.textContent = `A ${diffDays} día${diffDays>1?'s':''}`;
-      scheduleInfo.style.color = "green";
+  deleteBtn.addEventListener('click', () => {
+    if (!confirm('Eliminar tarea?')) return;
+    if (isSubtask) {
+      const parent = findParentTask(list, task.id);
+      if (parent) parent.subtasks = parent.subtasks.filter(t => t.id !== task.id);
     } else {
-      scheduleInfo.textContent = `${Math.abs(diffDays)} día${Math.abs(diffDays)>1?'s':''} retraso`;
-      scheduleInfo.style.color = "red";
+      const listRef = findList(task.listId) || list;
+      listRef.tasks = listRef.tasks.filter(t => t.id !== task.id);
+      const archivedIndex = state.archived.findIndex(t => t.id === task.id);
+      if (archivedIndex > -1) state.archived.splice(archivedIndex, 1);
+    }
+    saveState();
+    render();
+  });
+
+  editBtn.addEventListener('click', () => {
+    content.contentEditable = "true";
+    content.focus();
+  });
+  content.addEventListener('blur', () => {
+    finishEdit(content, task, list, isSubtask);
+  });
+  content.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      content.blur();
     }
   });
 
-  // Eventos botones
-  detailsBtn.addEventListener("click", () => {
-    detailsContainer.style.display = detailsContainer.style.display === "none" ? "flex" : "none";
+  subBtn.addEventListener('click', () => {
+    if (!task.subtasks) task.subtasks = [];
+    const text = prompt("Nueva sub-tarea:");
+    if (text) {
+      task.subtasks.push({ id: genId('st'), text: text.trim(), done: false, subtasks: [] });
+      saveState();
+      render();
+    }
   });
-  saveBtn.addEventListener("click", () => {
-    mainInput.setAttribute("readonly", true);
-    secondaryInput.setAttribute("readonly", true);
-    select1.disabled = true;
-    select2.disabled = true;
-    input3.setAttribute("readonly", true);
-    scheduleInput.disabled = true;
-    saveBtn.style.display = "none";
-    editBtn.style.display = "inline";
-  });
-  editBtn.addEventListener("click", () => {
-    mainInput.removeAttribute("readonly");
-    secondaryInput.removeAttribute("readonly");
-    select1.disabled = false;
-    select2.disabled = false;
-    input3.removeAttribute("readonly");
-    scheduleInput.disabled = false;
-    editBtn.style.display = "none";
-    saveBtn.style.display = "inline";
-  });
- highlightBtn.addEventListener("click", () => {
-  if(card.classList.contains("highlighted")) {
-    card.classList.remove("highlighted");
-    swipeCard.classList.remove("highlighted"); // agregado
-    card.style.backgroundColor = "white";
-    highlightBtn.textContent = "☆";
-  } else {
-    card.classList.add("highlighted");
-    swipeCard.classList.add("highlighted"); // agregado
-    card.style.backgroundColor = "#fef08a";
-    highlightBtn.textContent = "★";
+
+  if (task.subtasks && task.subtasks.length) {
+    const ul = document.createElement("ul");
+    ul.classList.add("subtasks");
+    task.subtasks.forEach(st => {
+      const stNode = buildTaskNode(st, list, true);
+      stNode.classList.add("subtask-item");
+      ul.appendChild(stNode);
+    });
+    node.appendChild(ul);
   }
+
+  return node;
+}
+
+function findParentTask(list, subtaskId) {
+  function recurse(tasks) {
+    for (const t of tasks) {
+      if (t.subtasks?.some(st => st.id === subtaskId)) return t;
+      const deeper = recurse(t.subtasks || []);
+      if (deeper) return deeper;
+    }
+    return null;
+  }
+  return recurse(list.tasks);
+}
+
+function finishEdit(contentEl, task, list, isSubtask) {
+  contentEl.contentEditable = "false";
+  const nuevo = contentEl.textContent.trim();
+  if (!nuevo) {
+    if (isSubtask) {
+      const parent = findParentTask(list, task.id);
+      if (parent) parent.subtasks = parent.subtasks.filter(t => t.id !== task.id);
+    } else {
+      const listRef = findList(task.listId) || list;
+      listRef.tasks = listRef.tasks.filter(t => t.id !== task.id);
+      const archivedIndex = state.archived.findIndex(t => t.id === task.id);
+      if (archivedIndex > -1) state.archived.splice(archivedIndex,1);
+    }
+  } else {
+    task.text = nuevo;
+  }
+  saveState();
+  renderTasks();
+}
+
+function render() {
+  renderLists();
+  renderTasks();
+}
+
+/* ---------- Acciones UI ---------- */
+addListBtn.addEventListener('click', () => {
+  const name = prompt('Nombre de la nueva lista:', 'Nueva lista');
+  if (name === null) return;
+  const list = { id: genId('l'), name: name.trim() || 'Lista', tasks: [], emoji: "📌" };
+  state.lists.push(list);
+  state.currentListId = list.id;
+  state.viewingArchived = false;
+  saveState();
+  render();
 });
 
-  // Construir tarjeta
-  card.appendChild(mainInput);
-  card.appendChild(secondaryInput);
-  card.appendChild(detailsContainer);
-
-  const actionsRow = document.createElement("div");
-  actionsRow.className = "actions-row";
-  actionsRow.style.display = "flex";
-  actionsRow.style.alignItems = "center";
-  actionsRow.style.gap = "6px";
-
-  actionsRow.appendChild(saveBtn);
-  actionsRow.appendChild(editBtn);
-  actionsRow.appendChild(detailsBtn);
-  actionsRow.appendChild(scheduleLabel);
-  actionsRow.appendChild(scheduleInput);
-  actionsRow.appendChild(scheduleInfo);
-  actionsRow.appendChild(highlightBtn);
-
-  card.appendChild(actionsRow);
-
-  // Swipe
-  const swipeWrapper = document.createElement("div");
-  swipeWrapper.className = "swipe-wrapper";
-  const swipeCard = document.createElement("div");
-  swipeCard.className = "swipe-card";
-
-  while(card.firstChild) { swipeCard.appendChild(card.firstChild); }
-
-  const swipeActions = document.createElement("div");
-  swipeActions.className = "swipe-actions";
-  swipeActions.style.display = "flex";
-  swipeActions.style.flexDirection = "column"; 
-  swipeActions.style.justifyContent = "flex-start"; 
-  swipeActions.style.alignItems = "center";
-  swipeActions.style.width = "50px";
-  swipeActions.style.right = "0";
-  swipeActions.style.top = "0";
-  swipeActions.style.bottom = "0";
-  swipeActions.style.position = "absolute";
-  swipeActions.style.backgroundColor = "transparent";
-
-  const completeBtn = document.createElement("button");
-  completeBtn.className = "swipe-btn complete-btn";
-  completeBtn.textContent = "✅";
-  completeBtn.style.width = "36px";
-  completeBtn.style.height = "36px";
-  completeBtn.style.margin = "4px 0";
-
-  const removeBtn = document.createElement("button");
-  removeBtn.className = "swipe-btn remove-btn";
-  removeBtn.textContent = "🗑️";
-  removeBtn.style.width = "36px";
-  removeBtn.style.height = "36px";
-  removeBtn.style.margin = "4px 0";
-
-  swipeActions.appendChild(completeBtn);
-  swipeActions.appendChild(removeBtn);
-
-  swipeWrapper.appendChild(swipeActions);
-  swipeWrapper.appendChild(swipeCard);
-
-  cardsContainer.insertBefore(swipeWrapper, cardsContainer.firstChild);
-
-  // Swipe eventos
-  let isDragging = false;
-  let startX, currentX, translateX = 0;
-
-  const handleStart = (e) => { if(e.target.tagName === "SELECT") return; isDragging=true; startX=e.type.includes("mouse")?e.clientX:e.touches[0].clientX; };
-  const handleMove = (e) => { if(!isDragging) return; currentX=e.type.includes("mouse")?e.clientX:e.touches[0].clientX; translateX=Math.min(0,currentX-startX); swipeCard.style.transform=`translateX(${translateX}px)`; };
-  const handleEnd = () => { isDragging=false; swipeCard.style.transform = translateX<-50?`translateX(-60px)`:`translateX(0)`; };
-
-  swipeCard.addEventListener("mousedown", handleStart);
-  swipeCard.addEventListener("touchstart", handleStart);
-  swipeCard.addEventListener("mousemove", handleMove);
-  swipeCard.addEventListener("touchmove", handleMove);
-  swipeCard.addEventListener("mouseup", handleEnd);
-  swipeCard.addEventListener("mouseleave", handleEnd);
-  swipeCard.addEventListener("touchend", handleEnd);
-
-  completeBtn.addEventListener("click", () => { swipeCard.classList.toggle("completed"); });
-  removeBtn.addEventListener("click", () => { swipeWrapper.remove(); });
+addTaskBtn.addEventListener('click', addTaskFromInput);
+taskInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addTaskFromInput();
 });
+
+function addTaskFromInput() {
+  const text = taskInput.value.trim();
+  if (!text) return;
+  const list = findList(state.currentListId);
+  if (!list) {
+    alert('Seleccione o cree una lista primero.');
+    return;
+  }
+  const task = { id: genId('t'), text, done: false, subtasks: [], listId: list.id };
+  list.tasks.unshift(task);
+  taskInput.value = '';
+  saveState();
+  render();
+}
+
+clearCompletedBtn.addEventListener('click', () => {
+  const list = findList(state.currentListId);
+  if (!list) return;
+  list.tasks = list.tasks.filter(t => !t.done);
+  saveState();
+  render();
+});
+
+/* ---------- Inicializar ---------- */
+loadState();
+render();
