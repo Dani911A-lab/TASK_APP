@@ -1,364 +1,1189 @@
-const addIcon = document.getElementById("addIcon");
-const cardsContainer = document.getElementById("cardsContainer");
-const filterIcon = document.getElementById("filterIcon");
+// ================= TABS VENTAS =================
+const tabsVentas = document.querySelectorAll(".ventas-tab");
+const vistasVentas = document.querySelectorAll(".ventas-vista");
 
-// Crear label de filtro seleccionado
-let activeFilterLabel = document.createElement("span");
-activeFilterLabel.id = "activeFilterLabel";
-activeFilterLabel.style.fontSize = "12px";
-activeFilterLabel.style.color = "#555";
-activeFilterLabel.style.backgroundColor = "#ddd";
-activeFilterLabel.style.padding = "2px 6px";
-activeFilterLabel.style.borderRadius = "6px";
-activeFilterLabel.style.marginRight = "6px";
-activeFilterLabel.style.display = "none"; // oculto inicialmente
-filterIcon.parentElement.insertBefore(activeFilterLabel, filterIcon);
-
-// Crear menú flotante del filtro
-let filterMenu = document.createElement("div");
-filterMenu.style.position = "absolute";
-filterMenu.style.top = "36px";
-filterMenu.style.right = "0";
-filterMenu.style.backgroundColor = "white";
-filterMenu.style.border = "1px solid #aaa";
-filterMenu.style.borderRadius = "6px";
-filterMenu.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-filterMenu.style.display = "none";
-filterMenu.style.flexDirection = "column";
-filterMenu.style.zIndex = "1500";
-["TODAS", "CUMPLIDAS", "PENDIENTES", "DESTACADAS"].forEach(optionText => {
-  let option = document.createElement("div");
-  option.textContent = optionText;
-  option.style.padding = "6px 12px";
-  option.style.cursor = "pointer";
-  option.addEventListener("mouseenter", () => option.style.backgroundColor = "#f0f0f0");
-  option.addEventListener("mouseleave", () => option.style.backgroundColor = "white");
-  filterMenu.appendChild(option);
-});
-filterIcon.parentElement.appendChild(filterMenu);
-
-filterIcon.addEventListener("click", () => {
-  filterMenu.style.display = filterMenu.style.display === "flex" ? "none" : "flex";
+tabsVentas.forEach(tab => {
+  tab.addEventListener("click", () => {
+    tabsVentas.forEach(t => t.classList.remove("active"));
+    vistasVentas.forEach(v => v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.add("active");
+  });
 });
 
-// Función para aplicar filtro
-function applyFilter(value) {
-  activeFilterLabel.textContent = value === "TODAS" ? "" : value;
-  activeFilterLabel.style.display = value === "TODAS" ? "none" : "inline-block";
-  filterMenu.style.display = "none";
+// ================= DIRECTORIO =================
+const clientes = [];
+let editIndex = null;
+const tablaClientes = document.getElementById("tablaClientes");
+const guardarClienteBtn = document.getElementById("guardarCliente");
 
-  const allSwipeWrappers = document.querySelectorAll(".swipe-wrapper");
-  allSwipeWrappers.forEach(wrapper => {
-    const swipeCard = wrapper.querySelector(".swipe-card");
-
-    if (value === "TODAS") {
-      wrapper.style.display = "flex"; // mostrar todas
-    } else if (value === "CUMPLIDAS") {
-      wrapper.style.display = swipeCard.classList.contains("completed") ? "flex" : "none";
-    } else if (value === "PENDIENTES") {
-      wrapper.style.display = !swipeCard.classList.contains("completed") ? "flex" : "none";
-    } else if (value === "DESTACADAS") {
-      wrapper.style.display = swipeCard.classList.contains("highlighted") ? "flex" : "none";
-    }
+function renderClientes() {
+  tablaClientes.innerHTML = "";
+  clientes.forEach((c, i) => {
+    tablaClientes.innerHTML += `
+      <tr>
+        <td>${c.razon}</td>
+        <td>${c.ruc}</td>
+        <td>${c.personal}</td>
+        <td>${c.cargo}</td>
+        <td>${c.telefono}</td>
+        <td>${c.email}</td>
+        <td>
+          <button class="btn-editar" onclick="editarCliente(${i})">Editar</button>
+          <button class="btn-eliminar" onclick="eliminarCliente(${i})">Eliminar</button>
+        </td>
+      </tr>
+    `;
   });
 }
 
-// Asignar eventos a las opciones del menú
-Array.from(filterMenu.children).forEach(option => {
-  option.addEventListener("click", () => {
-    applyFilter(option.textContent);
+function renderClientes() {
+  tablaClientes.innerHTML = "";
+  clientes.forEach((c, i) => {
+    tablaClientes.innerHTML += `
+      <tr>
+        <td>${c.razon}</td>
+        <td>${c.ruc}</td>
+        <td>${c.personal}</td>
+        <td>${c.cargo}</td>
+        <td>${c.telefono}</td>
+        <td>${c.email}</td>
+        <td>
+          <button class="btn-editar" onclick="editarCliente(${i})">Editar</button>
+          <button class="btn-eliminar" onclick="eliminarCliente(${i})">Eliminar</button>
+        </td>
+      </tr>
+    `;
   });
-});
+}
 
-addIcon.addEventListener("click", () => {
-  const card = document.createElement("div");
-  card.className = "card";
-
-  // Input principal
-  const mainInput = document.createElement("input");
-  mainInput.className = "main-input";
-  mainInput.type = "text";
-  mainInput.placeholder = "Principal";
-
-  // Input secundario
-  const secondaryInput = document.createElement("input");
-  secondaryInput.className = "secondary-input";
-  secondaryInput.type = "text";
-  secondaryInput.placeholder = "Secundario";
-
-  // Botón guardar
-  const saveBtn = document.createElement("button");
-  saveBtn.className = "save-btn";
-  saveBtn.textContent = "💾";
-
-  // Botón editar
-  const editBtn = document.createElement("button");
-  editBtn.className = "edit-btn";
-  editBtn.textContent = "✏️";
-  editBtn.style.display = "none";
-
-  // Botón "destacar"
-  const highlightBtn = document.createElement("button");
-  highlightBtn.className = "highlight-btn";
-  highlightBtn.textContent = "☆";
-  highlightBtn.style.fontSize = "16px";
-
-  // Botón detalles
-  const detailsBtn = document.createElement("button");
-  detailsBtn.className = "details-btn";
-  detailsBtn.textContent = "➕ Detalles";
-
-  // Contenedor detalles
-  const detailsContainer = document.createElement("div");
-  detailsContainer.className = "details-container";
-
-  // Apartado 1: Empresas
-  const row1 = document.createElement("div");
-  row1.className = "detail-row";
-  const label1 = document.createElement("label");
-  label1.textContent = "Empresas:";
-  const select1 = document.createElement("select");
-  const placeholderOption1 = document.createElement("option");
-  placeholderOption1.textContent = "Selecciona empresa";
-  placeholderOption1.disabled = true;
-  placeholderOption1.selected = true;
-  select1.appendChild(placeholderOption1);
-  for (let i = 1; i <= 13; i++) {
-    const option = document.createElement("option");
-    option.value = `empresa${i}`;
-    option.textContent = `empresa${i}`;
-    select1.appendChild(option);
-  }
-  const tagsContainer1 = document.createElement("div");
-  tagsContainer1.className = "tags-container";
-  select1.addEventListener("change", () => {
-    const value = select1.value;
-    if (value && !Array.from(tagsContainer1.children).some(span => span.textContent.includes(value))) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = value + " ×";
-      tag.addEventListener("click", () => tag.remove());
-      tagsContainer1.appendChild(tag);
-    }
-    select1.selectedIndex = 0;
+/* ================= SELECT RAZON SOCIAL ================= */
+function actualizarSelectRazon() {
+  document.querySelectorAll(".aut-razon").forEach(select => {
+    const selected = select.value;
+    select.innerHTML = `<option value="">Seleccione</option>`;
+    clientes.forEach(c => {
+      select.innerHTML += `<option value="${c.razon}">${c.razon}</option>`;
+    });
+    select.value = selected;
   });
-  row1.appendChild(label1);
-  row1.appendChild(select1);
-  row1.appendChild(tagsContainer1);
-  detailsContainer.appendChild(row1);
+}
 
-  // Apartado 2: Personas
-  const row2 = document.createElement("div");
-  row2.className = "detail-row";
-  const label2 = document.createElement("label");
-  label2.textContent = "Personas:";
-  const select2 = document.createElement("select");
-  const placeholderOption2 = document.createElement("option");
-  placeholderOption2.textContent = "Selecciona persona";
-  placeholderOption2.disabled = true;
-  placeholderOption2.selected = true;
-  select2.appendChild(placeholderOption2);
-  for (let i = 1; i <= 20; i++) {
-    const option = document.createElement("option");
-    option.value = `persona${i}`;
-    option.textContent = `persona${i}`;
-    select2.appendChild(option);
-  }
-  const tagsContainer2 = document.createElement("div");
-  tagsContainer2.className = "tags-container";
-  select2.addEventListener("change", () => {
-    const value = select2.value;
-    if (value && !Array.from(tagsContainer2.children).some(span => span.textContent.includes(value))) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = value + " ×";
-      tag.addEventListener("click", () => tag.remove());
-      tagsContainer2.appendChild(tag);
-    }
-    select2.selectedIndex = 0;
+/* ================= SELECT ORIGEN ================= */
+function actualizarSelectOrigen() {
+  const origenes = ["MIRELYA", "ONAHOUSE"];
+
+  document.querySelectorAll(".aut-origen").forEach(select => {
+    const selected = select.value;
+    select.innerHTML = `<option value="">Seleccione</option>`;
+    origenes.forEach(o => {
+      select.innerHTML += `<option value="${o}">${o}</option>`;
+    });
+    select.value = selected;
   });
-  row2.appendChild(label2);
-  row2.appendChild(select2);
-  row2.appendChild(tagsContainer2);
-  detailsContainer.appendChild(row2);
+}
 
-  // Apartado 3
-  const row3 = document.createElement("div");
-  row3.className = "detail-row";
-  const label3 = document.createElement("label");
-  label3.textContent = "Observaciones:";
-  const input3 = document.createElement("input");
-  input3.type = "text";
-  input3.placeholder = "Detalle Observacion";
-  row3.appendChild(label3);
-  row3.appendChild(input3);
-  detailsContainer.appendChild(row3);
-
-  detailsContainer.style.display = "none";
-
-  // Programar
-  const scheduleLabel = document.createElement("span");
-  scheduleLabel.textContent = "Programar:";
-  scheduleLabel.className = "schedule-label";
-  scheduleLabel.style.marginRight = "4px";
-  scheduleLabel.style.fontSize = "14px";       
-  scheduleLabel.style.color = "#666";          
-
-  const scheduleInput = document.createElement("input");
-  scheduleInput.type = "date";
-  scheduleInput.className = "schedule-input";
-  scheduleInput.style.border = "1px solid #ccc";
-  scheduleInput.style.borderRadius = "6px";
-  scheduleInput.style.backgroundColor = "#f0f0f0"; 
-  scheduleInput.style.padding = "2px 6px";        
-  scheduleInput.style.fontSize = "14px";          
-  scheduleInput.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-
-  const scheduleInfo = document.createElement("span");
-  scheduleInfo.className = "schedule-info";
-  scheduleInfo.style.marginLeft = "8px";
-  scheduleInfo.style.fontWeight = "bold";
-  scheduleInfo.style.fontSize = "14px";           
-  scheduleInfo.style.color = "#333"; 
-
-  scheduleInput.addEventListener("change", () => {
-    if (!scheduleInput.value) { scheduleInfo.textContent = ""; return; }
-    const selectedDate = new Date(scheduleInput.value);
-    const today = new Date();
-    selectedDate.setHours(0,0,0,0);
-    today.setHours(0,0,0,0);
-    const diffTime = selectedDate - today;
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) {
-      scheduleInfo.textContent = "Hoy";
-      scheduleInfo.style.color = "green";
-    } else if (diffDays > 0) {
-      scheduleInfo.textContent = `A ${diffDays} día${diffDays>1?'s':''}`;
-      scheduleInfo.style.color = "green";
-    } else {
-      scheduleInfo.textContent = `${Math.abs(diffDays)} día${Math.abs(diffDays)>1?'s':''} retraso`;
-      scheduleInfo.style.color = "red";
-    }
+/* ================= SELECT UNIDAD ================= */
+function actualizarSelectUnidad() {
+  document.querySelectorAll(".aut-unidad").forEach(select => {
+    const selected = select.value;
+    select.innerHTML = `
+      <option value="QUINTAL">QUINTAL</option>
+      <option value="KILO">KILO</option>
+    `;
+    select.value = selected || "QUINTAL";
   });
+}
 
-  // Eventos botones
-  detailsBtn.addEventListener("click", () => {
-    detailsContainer.style.display = detailsContainer.style.display === "none" ? "flex" : "none";
-  });
-  saveBtn.addEventListener("click", () => {
-    mainInput.setAttribute("readonly", true);
-    secondaryInput.setAttribute("readonly", true);
-    select1.disabled = true;
-    select2.disabled = true;
-    input3.setAttribute("readonly", true);
-    scheduleInput.disabled = true;
-    saveBtn.style.display = "none";
-    editBtn.style.display = "inline";
-  });
-  editBtn.addEventListener("click", () => {
-    mainInput.removeAttribute("readonly");
-    secondaryInput.removeAttribute("readonly");
-    select1.disabled = false;
-    select2.disabled = false;
-    input3.removeAttribute("readonly");
-    scheduleInput.disabled = false;
-    editBtn.style.display = "none";
-    saveBtn.style.display = "inline";
-  });
- highlightBtn.addEventListener("click", () => {
-  if(card.classList.contains("highlighted")) {
-    card.classList.remove("highlighted");
-    swipeCard.classList.remove("highlighted"); // agregado
-    card.style.backgroundColor = "white";
-    highlightBtn.textContent = "☆";
+guardarClienteBtn.addEventListener("click", () => {
+  const cliente = {
+    razon: document.getElementById("razonSocial").value,
+    ruc: document.getElementById("ruc").value,
+    personal: document.getElementById("personal").value,
+    cargo: document.getElementById("cargo").value,
+    telefono: document.getElementById("telefono").value,
+    email: document.getElementById("email").value
+  };
+
+  if (editIndex !== null) {
+    clientes[editIndex] = cliente;
+    editIndex = null;
   } else {
-    card.classList.add("highlighted");
-    swipeCard.classList.add("highlighted"); // agregado
-    card.style.backgroundColor = "#fef08a";
-    highlightBtn.textContent = "★";
+    clientes.push(cliente);
+  }
+
+  renderClientes();
+  actualizarSelectRazon();
+  actualizarSelectOrigen();
+  actualizarSelectUnidad();
+  guardarDirectorio();
+
+  document.getElementById("razonSocial").value = "";
+  document.getElementById("ruc").value = "";
+  document.getElementById("personal").value = "";
+  document.getElementById("cargo").value = "";
+  document.getElementById("telefono").value = "";
+  document.getElementById("email").value = "";
+});
+
+function editarCliente(i) {
+  const c = clientes[i];
+  document.getElementById("razonSocial").value = c.razon;
+  document.getElementById("ruc").value = c.ruc;
+  document.getElementById("personal").value = c.personal;
+  document.getElementById("cargo").value = c.cargo;
+  document.getElementById("telefono").value = c.telefono;
+  document.getElementById("email").value = c.email;
+  editIndex = i;
+}
+
+function eliminarCliente(i) {
+  if (editIndex === i) editIndex = null;
+  clientes.splice(i, 1);
+  renderClientes();
+  actualizarSelectRazon();
+  actualizarSelectOrigen();
+  actualizarSelectUnidad();
+  guardarDirectorio();
+}
+
+function guardarDirectorio() {
+  localStorage.setItem("directorio", JSON.stringify(clientes));
+}
+
+function cargarDirectorio() {
+  const data = JSON.parse(localStorage.getItem("directorio") || "[]");
+  clientes.length = 0;
+  data.forEach(c => clientes.push(c));
+  renderClientes();
+  actualizarSelectRazon();
+  actualizarSelectOrigen();
+  actualizarSelectUnidad();
+}
+
+document.querySelectorAll("#directorio .directorio-form input").forEach(input => {
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      guardarClienteBtn.click();
+    }
+  });
+});
+
+/* === inicialización segura === */
+cargarDirectorio();
+actualizarSelectOrigen();
+actualizarSelectUnidad();
+
+
+
+
+// ================= AUTORIZACION =================
+const btnNuevoRegistro = document.getElementById("nuevoRegistro");
+const btnGenerarOrden = document.getElementById("generarOrden");
+
+// Función para agregar una nueva fila de autorización
+function agregarFilaAutorizacion(inicial = false) {
+  const fila = document.createElement("div");
+  fila.className = "autorizacion-inputs";
+
+  fila.innerHTML = `
+    <select class="aut-razon"></select>
+    <select class="aut-origen"></select>
+    <input type="number" class="aut-cant">
+    <select class="aut-unidad">
+      <option>KILO</option>
+      <option>QUINTAL</option>
+      <option>LIBRA</option>
+    </select>
+    <input class="aut-precio">
+    <input class="aut-subtotal" readonly>
+    <input class="aut-retencion" readonly>
+    <input class="aut-pago" readonly>
+    <input class="aut-sem" readonly>
+    <input class="aut-fecha" readonly>
+    <button class="btn-eliminar-fila">X</button>
+  `;
+
+  const selectOrigen = fila.querySelector(".aut-origen");
+  selectOrigen.innerHTML = `
+    <option value="">Seleccione</option>
+    <option value="MIRELYA">MIRELYA</option>
+    <option value="ONAHOUSE">ONAHOUSE</option>
+  `;
+
+  const contenedor = document.querySelector(".autorizacion-registro");
+  const filaTotal = contenedor.querySelector(".autorizacion-totales");
+  if (filaTotal) contenedor.insertBefore(fila, filaTotal);
+  else contenedor.appendChild(fila);
+
+  actualizarSelectRazon(); 
+
+  const cant = fila.querySelector(".aut-cant");
+  const precio = fila.querySelector(".aut-precio");
+  const subtotal = fila.querySelector(".aut-subtotal");
+  const retencion = fila.querySelector(".aut-retencion");
+  const pago = fila.querySelector(".aut-pago");
+  const sem = fila.querySelector(".aut-sem");
+  const fecha = fila.querySelector(".aut-fecha");
+  const btnEliminar = fila.querySelector(".btn-eliminar-fila");
+
+  function calcular() {
+    const c = parseFloat(cant.value) || 0;
+    const p = parseFloat(precio.value) || 0;
+    const s = c * p;
+    subtotal.value = s.toFixed(2);
+    retencion.value = (s * 0.01).toFixed(2);
+    pago.value = (s - s * 0.01).toFixed(2);
+
+    const hoy = new Date();
+    const start = new Date(hoy.getFullYear(), 0, 1);
+    const diff = hoy - start + (start.getDay() + 1) * 86400000;
+    const week = Math.ceil(diff / (7 * 86400000));
+    sem.value = week;
+    fecha.value = hoy.toISOString().split("T")[0];
+
+    actualizarTotales();
+  }
+
+  cant.addEventListener("input", calcular);
+  precio.addEventListener("input", calcular);
+  fila.querySelector(".aut-razon").addEventListener("input", actualizarTotales);
+  selectOrigen.addEventListener("input", actualizarTotales);
+
+  // Eliminar fila del contenedor de Autorización
+  btnEliminar.onclick = () => {
+    fila.remove();
+    actualizarTotales();
+  };
+
+  if (inicial) calcular();
+}
+
+// Función para actualizar la fila de totales
+function actualizarTotales() {
+  const filas = document.querySelectorAll(".autorizacion-inputs");
+  let totalCant = 0, totalPrecio = 0, totalSubtotal = 0, totalRetencion = 0, totalPago = 0;
+
+  filas.forEach(fila => {
+    const cant = parseFloat(fila.querySelector(".aut-cant").value) || 0;
+    const precio = parseFloat(fila.querySelector(".aut-precio").value) || 0;
+    const subtotal = parseFloat(fila.querySelector(".aut-subtotal").value) || 0;
+    const retencion = parseFloat(fila.querySelector(".aut-retencion").value) || 0;
+    const pago = parseFloat(fila.querySelector(".aut-pago").value) || 0;
+
+    totalCant += cant;
+    totalPrecio += precio;
+    totalSubtotal += subtotal;
+    totalRetencion += retencion;
+    totalPago += pago;
+  });
+
+  const filaTotal = document.querySelector(".autorizacion-totales");
+  if (!filaTotal) return;
+
+  filaTotal.querySelector(".total-cant").textContent = totalCant;
+  filaTotal.querySelector(".total-precio").textContent = totalPrecio.toFixed(2);
+  filaTotal.querySelector(".total-subtotal").textContent = totalSubtotal.toFixed(2);
+  filaTotal.querySelector(".total-retencion").textContent = totalRetencion.toFixed(2);
+  filaTotal.querySelector(".total-pago").textContent = totalPago.toFixed(2);
+
+  const totalEliminar = filaTotal.querySelector(".total-eliminar");
+  if (totalEliminar) totalEliminar.textContent = "-";
+}
+
+// Botón “Nuevo Registro”
+btnNuevoRegistro.addEventListener("click", () => agregarFilaAutorizacion());
+
+// Crear fila inicial al cargar la pestaña
+agregarFilaAutorizacion(true);
+
+// ================= BOTÓN GENERAR ORDEN =================
+btnGenerarOrden.addEventListener("click", () => {
+  const filasAut = document.querySelectorAll(".autorizacion-inputs");
+  if (!filasAut.length) return;
+
+  let ultimaFila = null;
+
+  filasAut.forEach(fila => {
+    const razon = fila.querySelector(".aut-razon").value;
+    const origen = fila.querySelector(".aut-origen").value;
+    const cant = fila.querySelector(".aut-cant").value;
+    const unidad = fila.querySelector(".aut-unidad").value;
+    const precio = fila.querySelector(".aut-precio").value;
+    const subtotal = fila.querySelector(".aut-subtotal").value;
+    const retencion = fila.querySelector(".aut-retencion").value;
+    const pago = fila.querySelector(".aut-pago").value;
+
+    const row = document.createElement("div");
+    row.className = "fact-hist-row";
+    row.dataset.archivos = "[]";
+    row.innerHTML = `
+      <div><input type="checkbox" class="fact-check"></div>
+      <div class="fact-cell">${razon}</div>
+      <div class="fact-cell">${origen}</div>
+      <div class="fact-cell">${cant}</div>
+      <div class="fact-cell">${unidad}</div>
+      <div class="fact-cell">${precio}</div>
+      <div class="fact-cell">${subtotal}</div>
+      <div class="fact-cell">${retencion}</div>
+      <div class="fact-cell">${pago}</div>
+      <div class="fact-acciones">
+        <button class="btn-editar" title="Editar">✏️</button>
+        <button class="btn-eliminar" title="Eliminar">🗑️</button>
+      </div>
+    `;
+    factHistBody.appendChild(row);
+    agregarEventosFila(row);
+    ultimaFila = row;
+  });
+
+  guardarFacturacion();
+
+  // LIMPIAR AUTORIZACION
+  const contenedor = document.querySelector(".autorizacion-registro");
+  contenedor.querySelectorAll(".autorizacion-inputs").forEach(fila => fila.remove());
+  actualizarTotales();
+
+  // CAMBIAR A PESTAÑA FACTURACION
+  const tabVentas = document.querySelector(".ventas-tab[data-tab='facturacion']");
+  if (tabVentas) tabVentas.click();
+
+  // PARPADEO SUAVE DE LA NUEVA FILA
+  if (ultimaFila) {
+    ultimaFila.style.transition = "background 0.6s ease";
+    let parpadeos = 0;
+    const maxParpadeos = 3;
+
+    const interval = setInterval(() => {
+      if (parpadeos >= maxParpadeos) {
+        ultimaFila.style.background = ""; // Restablece color original
+        clearInterval(interval);
+        return;
+      }
+      ultimaFila.style.background = ultimaFila.style.background === "rgba(255, 249, 157, 0.6)" ? "" : "rgba(255, 249, 157, 0.6)";
+      parpadeos += 0.5; // cada cambio cuenta como medio parpadeo
+    }, 400);
   }
 });
 
-  // Construir tarjeta
-  card.appendChild(mainInput);
-  card.appendChild(secondaryInput);
-  card.appendChild(detailsContainer);
 
-  const actionsRow = document.createElement("div");
-  actionsRow.className = "actions-row";
-  actionsRow.style.display = "flex";
-  actionsRow.style.alignItems = "center";
-  actionsRow.style.gap = "6px";
 
-  actionsRow.appendChild(saveBtn);
-  actionsRow.appendChild(editBtn);
-  actionsRow.appendChild(detailsBtn);
-  actionsRow.appendChild(scheduleLabel);
-  actionsRow.appendChild(scheduleInput);
-  actionsRow.appendChild(scheduleInfo);
-  actionsRow.appendChild(highlightBtn);
 
-  card.appendChild(actionsRow);
 
-  // Swipe
-  const swipeWrapper = document.createElement("div");
-  swipeWrapper.className = "swipe-wrapper";
-  const swipeCard = document.createElement("div");
-  swipeCard.className = "swipe-card";
 
-  while(card.firstChild) { swipeCard.appendChild(card.firstChild); }
 
-  const swipeActions = document.createElement("div");
-  swipeActions.className = "swipe-actions";
-  swipeActions.style.display = "flex";
-  swipeActions.style.flexDirection = "column"; 
-  swipeActions.style.justifyContent = "flex-start"; 
-  swipeActions.style.alignItems = "center";
-  swipeActions.style.width = "50px";
-  swipeActions.style.right = "0";
-  swipeActions.style.top = "0";
-  swipeActions.style.bottom = "0";
-  swipeActions.style.position = "absolute";
-  swipeActions.style.backgroundColor = "transparent";
 
-  const completeBtn = document.createElement("button");
-  completeBtn.className = "swipe-btn complete-btn";
-  completeBtn.textContent = "✅";
-  completeBtn.style.width = "36px";
-  completeBtn.style.height = "36px";
-  completeBtn.style.margin = "4px 0";
 
-  const removeBtn = document.createElement("button");
-  removeBtn.className = "swipe-btn remove-btn";
-  removeBtn.textContent = "🗑️";
-  removeBtn.style.width = "36px";
-  removeBtn.style.height = "36px";
-  removeBtn.style.margin = "4px 0";
 
-  swipeActions.appendChild(completeBtn);
-  swipeActions.appendChild(removeBtn);
 
-  swipeWrapper.appendChild(swipeActions);
-  swipeWrapper.appendChild(swipeCard);
+// ================= FACTURACION =================
+const factHistBody = document.getElementById("fact-historial-body");
+const factAprobadasBody = document.getElementById("fact-aprobadas-body");
+const btnAprobar = document.getElementById("aprobarFacturacion");
 
-  cardsContainer.insertBefore(swipeWrapper, cardsContainer.firstChild);
+// Crear contenedor para botones en cabecera
+const headerBotonesContainer = document.createElement("div");
+headerBotonesContainer.style.display = "flex";
+headerBotonesContainer.style.gap = "10px";
+headerBotonesContainer.style.marginBottom = "10px";
+btnAprobar.parentNode.insertBefore(headerBotonesContainer, btnAprobar);
+headerBotonesContainer.appendChild(btnAprobar);
 
-  // Swipe eventos
-  let isDragging = false;
-  let startX, currentX, translateX = 0;
+// ================= BOTÓN APROBAR =================
+btnAprobar.textContent = "Aprobar facturación";
+btnAprobar.style.background = "#4caf50";
+btnAprobar.style.color = "#fff";
+btnAprobar.style.border = "none";
+btnAprobar.style.borderRadius = "6px";
+btnAprobar.style.padding = "6px 14px";
+btnAprobar.style.cursor = "pointer";
+btnAprobar.style.fontWeight = "600";
+btnAprobar.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)";
+btnAprobar.onmouseover = () => btnAprobar.style.background = "#45a049";
+btnAprobar.onmouseout  = () => btnAprobar.style.background = "#4caf50";
 
-  const handleStart = (e) => { if(e.target.tagName === "SELECT") return; isDragging=true; startX=e.type.includes("mouse")?e.clientX:e.touches[0].clientX; };
-  const handleMove = (e) => { if(!isDragging) return; currentX=e.type.includes("mouse")?e.clientX:e.touches[0].clientX; translateX=Math.min(0,currentX-startX); swipeCard.style.transform=`translateX(${translateX}px)`; };
-  const handleEnd = () => { isDragging=false; swipeCard.style.transform = translateX<-50?`translateX(-60px)`:`translateX(0)`; };
+// ================= BOTÓN IMPRIMIR =================
+const btnImprimirGlobal = document.createElement("button");
+btnImprimirGlobal.textContent = "Imprimir seleccionadas";
+btnImprimirGlobal.title = "Imprimir órdenes seleccionadas";
+btnImprimirGlobal.style.background = "#1e88e5";
+btnImprimirGlobal.style.color = "#fff";
+btnImprimirGlobal.style.border = "none";
+btnImprimirGlobal.style.borderRadius = "6px";
+btnImprimirGlobal.style.padding = "6px 14px";
+btnImprimirGlobal.style.cursor = "pointer";
+btnImprimirGlobal.style.fontWeight = "600";
+btnImprimirGlobal.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)";
+btnImprimirGlobal.onmouseover = () => btnImprimirGlobal.style.background = "#1976d2";
+btnImprimirGlobal.onmouseout  = () => btnImprimirGlobal.style.background = "#1e88e5";
+headerBotonesContainer.appendChild(btnImprimirGlobal);
 
-  swipeCard.addEventListener("mousedown", handleStart);
-  swipeCard.addEventListener("touchstart", handleStart);
-  swipeCard.addEventListener("mousemove", handleMove);
-  swipeCard.addEventListener("touchmove", handleMove);
-  swipeCard.addEventListener("mouseup", handleEnd);
-  swipeCard.addEventListener("mouseleave", handleEnd);
-  swipeCard.addEventListener("touchend", handleEnd);
+// Evento de impresión
+btnImprimirGlobal.onclick = imprimirOrdenesSeleccionadas;
 
-  completeBtn.addEventListener("click", () => { swipeCard.classList.toggle("completed"); });
-  removeBtn.addEventListener("click", () => { swipeWrapper.remove(); });
+// ================= IMPRESION =================
+function imprimirOrdenesSeleccionadas() {
+  const filas = factHistBody.querySelectorAll(".fact-hist-row");
+
+  let contenido = "";
+  let totalCant = 0;
+  let totalSubtotal = 0;
+  let totalRetencion = 0;
+  let totalPago = 0;
+
+  filas.forEach(row => {
+    const check = row.querySelector(".fact-check");
+    if (check && check.checked) {
+      const c = row.querySelectorAll(".fact-cell");
+      const cant = parseFloat(c[2].textContent) || 0;
+      const subtotal = parseFloat(c[5].textContent) || 0;
+      const retencion = parseFloat(c[6].textContent) || 0;
+      const pago = parseFloat(c[7].textContent) || 0;
+
+      totalCant += cant;
+      totalSubtotal += subtotal;
+      totalRetencion += retencion;
+      totalPago += pago;
+
+      contenido += `
+        <tr>
+          <td>${c[0].textContent}</td>
+          <td>${c[1].textContent}</td>
+          <td>${c[2].textContent}</td>
+          <td>${c[3].textContent}</td>
+          <td>${c[4].textContent}</td>
+          <td>${c[5].textContent}</td>
+          <td>${c[6].textContent}</td>
+          <td>${c[7].textContent}</td>
+        </tr>
+      `;
+    }
+  });
+
+  if (!contenido) {
+    alert("Seleccione al menos una orden para imprimir.");
+    return;
+  }
+
+  const ventana = window.open("", "_blank");
+  ventana.document.write(`
+    <html>
+    <head>
+      <title>Reporte de Órdenes</title>
+      <style>
+        body { font-family: Arial; padding: 20px; color: #333; }
+        h2 { text-align: center; color: #1e88e5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+        th { background: #f3f4f6; }
+        tfoot td { font-weight: bold; background: #f3f4f6; }
+        .firmas { margin-top: 60px; display: flex; justify-content: space-between; }
+        .firma { text-align: center; width: 45%; }
+        .cargo { color: #777; font-size: 12px; margin-top: 4px; }
+      </style>
+    </head>
+    <body>
+      <h2>Órdenes de Venta</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Razón Social</th>
+            <th>Origen</th>
+            <th>Cantidad</th>
+            <th>Unidad</th>
+            <th>Precio</th>
+            <th>Subtotal</th>
+            <th>Retención</th>
+            <th>Pago</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${contenido}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">TOTALES</td>
+            <td>${totalCant}</td>
+            <td></td>
+            <td></td>
+            <td>${totalSubtotal.toFixed(2)}</td>
+            <td>${totalRetencion.toFixed(2)}</td>
+            <td>${totalPago.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="firmas">
+        <div class="firma">
+          ELABORADO POR<br>
+          <strong>ING. CLAUDIA LEÓN</strong><br>
+          <span class="cargo">Responsable de Venta</span>
+        </div>
+        <div class="firma">
+          AUTORIZACIÓN<br>
+          <strong>ING. MANUEL BLACIO</strong><br>
+          <span class="cargo">Director General</span>
+        </div>
+      </div>
+      <script>
+        window.onload = () => window.print();
+        window.onafterprint = () => window.close();
+      </script>
+    </body>
+    </html>
+  `);
+  ventana.document.close();
+}
+
+// ================= MODAL ARCHIVOS =================
+const modal = document.createElement("div");
+modal.id = "modalArchivos";
+modal.style.display = "none";
+modal.style.position = "fixed";
+modal.style.top = "0";
+modal.style.left = "0";
+modal.style.width = "100%";
+modal.style.height = "100%";
+modal.style.background = "rgba(0,0,0,0.5)";
+modal.style.justifyContent = "center";
+modal.style.alignItems = "center";
+modal.style.zIndex = "1000";
+
+const modalContent = document.createElement("div");
+modalContent.style.background = "#fff";
+modalContent.style.width = "60%";
+modalContent.style.height = "60%";
+modalContent.style.display = "flex";
+modalContent.style.flexDirection = "row";
+modalContent.style.borderRadius = "8px";
+modalContent.style.padding = "10px";
+modalContent.style.boxShadow = "0 5px 15px rgba(0,0,0,0.3)";
+modalContent.style.position = "relative";
+
+const closeModal = document.createElement("span");
+closeModal.textContent = "✖";
+closeModal.style.position = "absolute";
+closeModal.style.top = "10px";
+closeModal.style.right = "15px";
+closeModal.style.cursor = "pointer";
+closeModal.style.fontSize = "18px";
+closeModal.onclick = () => { modal.style.display = "none"; };
+modalContent.appendChild(closeModal);
+
+const leftSection = document.createElement("div");
+leftSection.style.flex = "1";
+leftSection.style.marginRight = "5px";
+leftSection.style.display = "flex";
+leftSection.style.flexDirection = "column";
+
+const fileInput = document.createElement("input");
+fileInput.type = "file";
+fileInput.multiple = true;
+fileInput.style.marginBottom = "10px";
+leftSection.appendChild(fileInput);
+
+const archivosContainer = document.createElement("div");
+archivosContainer.style.flex = "1";
+archivosContainer.style.overflowY = "auto";
+leftSection.appendChild(archivosContainer);
+
+const previewContainer = document.createElement("div");
+previewContainer.style.flex = "1";
+previewContainer.style.marginLeft = "5px";
+previewContainer.style.background = "#f9f9f9";
+previewContainer.style.border = "1px solid #ddd";
+previewContainer.style.borderRadius = "4px";
+previewContainer.style.display = "flex";
+previewContainer.style.justifyContent = "center";
+previewContainer.style.alignItems = "center";
+previewContainer.style.overflow = "auto";
+
+modalContent.appendChild(leftSection);
+modalContent.appendChild(previewContainer);
+modal.appendChild(modalContent);
+document.body.appendChild(modal);
+
+// ================= FUNCIONES MODAL =================
+let filaActual = null;
+function abrirModal(fila) {
+  filaActual = fila;
+  modal.style.display = "flex";
+  archivosContainer.innerHTML = "";
+  previewContainer.innerHTML = "";
+
+  archivosContainer.style.border = "1px solid #d1d5db";
+  archivosContainer.style.borderRadius = "6px";
+  archivosContainer.style.padding = "8px";
+  archivosContainer.style.background = "#fafafa";
+  archivosContainer.style.maxHeight = "100%";
+  archivosContainer.style.overflowY = "auto";
+
+  let archivosGuardados = JSON.parse(fila.dataset.archivos || "[]");
+
+  if (!fila.archivosObj) fila.archivosObj = [];
+  archivosGuardados.forEach(nombre => {
+    if (!fila.archivosObj.some(a => a.name === nombre)) {
+      fila.archivosObj.push({ name: nombre, file: null });
+    }
+  });
+
+  filaActual.archivosObj.forEach(a => agregarArchivoLista(a));
+
+  fileInput.onchange = () => {
+    const nuevosArchivos = Array.from(fileInput.files);
+    nuevosArchivos.forEach(f => filaActual.archivosObj.push({ name: f.name, file: f }));
+
+    filaActual.dataset.archivos = JSON.stringify(filaActual.archivosObj.map(a => a.name));
+
+    archivosContainer.innerHTML = "";
+    filaActual.archivosObj.forEach(a => agregarArchivoLista(a));
+    fileInput.value = "";
+    guardarFacturacion();
+  };
+}
+
+function obtenerIconoArchivo(nombre) {
+  const ext = nombre.split(".").pop().toLowerCase();
+  if (ext === "pdf") return "📄";
+  if (["jpg","jpeg","png","gif"].includes(ext)) return "🖼️";
+  if (["doc","docx"].includes(ext)) return "📝";
+  if (["xls","xlsx"].includes(ext)) return "📊";
+  return "📁";
+}
+
+function agregarArchivoLista(archivoObj) {
+  const fila = document.createElement("div");
+  fila.style.display = "flex";
+  fila.style.alignItems = "center";
+  fila.style.justifyContent = "space-between";
+  fila.style.padding = "6px 8px";
+  fila.style.border = "1px solid #e5e7eb";
+  fila.style.borderRadius = "4px";
+  fila.style.marginBottom = "6px";
+  fila.style.background = "#fff";
+
+  const info = document.createElement("div");
+  info.style.display = "flex";
+  info.style.alignItems = "center";
+  info.style.gap = "6px";
+  info.style.cursor = "pointer";
+  info.style.flex = "1";
+
+  const icono = document.createElement("span");
+  icono.textContent = obtenerIconoArchivo(archivoObj.name);
+
+  const nombre = document.createElement("span");
+  nombre.textContent = archivoObj.name;
+  nombre.style.fontSize = "13px";
+
+  info.onclick = () => mostrarPreview(archivoObj);
+
+  info.appendChild(icono);
+  info.appendChild(nombre);
+
+  const btnEliminar = document.createElement("button");
+  btnEliminar.textContent = "✕";
+  btnEliminar.style.border = "none";
+  btnEliminar.style.background = "transparent";
+  btnEliminar.style.cursor = "pointer";
+  btnEliminar.style.fontSize = "14px";
+  btnEliminar.style.color = "#6b7280";
+
+  btnEliminar.onclick = () => {
+    filaActual.archivosObj = filaActual.archivosObj.filter(a => a.name !== archivoObj.name);
+    filaActual.dataset.archivos = JSON.stringify(filaActual.archivosObj.map(a => a.name));
+    archivosContainer.innerHTML = "";
+    filaActual.archivosObj.forEach(a => agregarArchivoLista(a));
+    previewContainer.innerHTML = "";
+    guardarFacturacion();
+  };
+
+  fila.appendChild(info);
+  fila.appendChild(btnEliminar);
+  archivosContainer.appendChild(fila);
+}
+
+function mostrarPreview(archivoObj) {
+  previewContainer.innerHTML = "";
+
+  if (!archivoObj.file) {
+    previewContainer.textContent = "No se puede previsualizar este archivo (guardado previamente).";
+    return;
+  }
+
+  const file = archivoObj.file;
+  const url = URL.createObjectURL(file);
+
+  if (file.type === "application/pdf") {
+    const iframe = document.createElement("iframe");
+    iframe.src = url;
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    previewContainer.appendChild(iframe);
+  } else if (file.type.startsWith("image/")) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "100%";
+    img.style.objectFit = "contain";
+    previewContainer.appendChild(img);
+  } else {
+    previewContainer.textContent = "Vista previa no disponible para este tipo de archivo.";
+  }
+}
+
+// ================= FUNCIONES FILA =================
+function agregarEventosFila(row) {
+  const btnEditar = row.querySelector(".btn-editar");
+  const btnEliminar = row.querySelector(".btn-eliminar");
+
+  // === ESTILO MINIMALISTA BASE ===
+  const estiloAccion = btn => {
+    btn.style.background = "#fff";
+    btn.style.border = "1px solid #ccc";
+    btn.style.borderRadius = "4px";
+    btn.style.width = "32px";
+    btn.style.height = "32px";
+    btn.style.cursor = "pointer";
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
+    btn.style.padding = "0";
+    btn.style.marginRight = "4px"; // separación entre botones
+  };
+
+  estiloAccion(btnEditar);
+  estiloAccion(btnEliminar);
+
+  // === ICONOS USANDO FONT AWESOME 6 ===
+  const iconEditar = `<i class="fas fa-pencil-alt" style="color:#4caf50;"></i>`;
+  const iconGuardar = `<i class="fas fa-check" style="color:#2196f3;"></i>`;
+  const iconEliminar = `<i class="fas fa-trash-alt" style="color:#f44336;"></i>`;
+  const iconRestaurar = `<i class="fas fa-undo" style="color:#ff9800;"></i>`;
+  const iconAdjuntar = `<i class="fas fa-paperclip" style="color:#9c27b0;"></i>`;
+
+  btnEditar.innerHTML = iconEditar;
+  btnEditar.title = "Editar";
+
+  btnEliminar.innerHTML = iconEliminar;
+  btnEliminar.title = "Eliminar";
+
+  // Editar
+  btnEditar.addEventListener("click", () => {
+    const celdas = row.querySelectorAll(".fact-cell");
+    const editable = celdas[0].isContentEditable;
+
+    if (!editable) {
+      celdas.forEach(c => {
+        c.contentEditable = true;
+        c.style.background = "#fff";
+        c.style.border = "1px solid #d1d5db";
+        c.style.borderRadius = "4px";
+        c.style.padding = "2px 4px";
+      });
+      btnEditar.innerHTML = iconGuardar;
+      btnEditar.title = "Guardar";
+    } else {
+      celdas.forEach(c => {
+        c.contentEditable = false;
+        c.style.background = "#f9fafb";
+        c.style.border = "none";
+        c.style.padding = "0";
+      });
+      btnEditar.innerHTML = iconEditar;
+      btnEditar.title = "Editar";
+      guardarFacturacion();
+    }
+  });
+
+  // Eliminar / Restaurar
+  btnEliminar.addEventListener("click", () => {
+    if (btnEliminar.title === "Eliminar") {
+      row.remove();
+    } else if (btnEliminar.title === "Restaurar") {
+      factHistBody.appendChild(row);
+      btnEliminar.innerHTML = iconEliminar;
+      btnEliminar.title = "Eliminar";
+    }
+    guardarFacturacion();
+  });
+
+  // Botón cargar documentos (minimalista)
+  let btnCargar = row.querySelector(".btn-cargar-doc");
+  if (!btnCargar) {
+    btnCargar = document.createElement("button");
+    btnCargar.className = "btn-cargar-doc";
+    btnCargar.innerHTML = iconAdjuntar;
+    estiloAccion(btnCargar);
+    btnCargar.title = "Adjuntar documentos";
+    btnCargar.onclick = () => abrirModal(row);
+    row.querySelector(".fact-acciones").appendChild(btnCargar);
+  }
+}
+
+
+
+// ================= APROBAR =================
+btnAprobar.addEventListener("click", () => {
+  const filas = factHistBody.querySelectorAll(".fact-hist-row");
+
+  // Iconos Font Awesome 6
+  const iconRestaurar = `<i class="fas fa-undo" style="color:#ff9800;"></i>`;
+  const iconEliminar = `<i class="fas fa-trash-alt" style="color:#f44336;"></i>`;
+
+  filas.forEach(fila => {
+    const check = fila.querySelector(".fact-check");
+    if (check && check.checked) {
+      check.checked = false;
+      factAprobadasBody.appendChild(fila);
+
+      const btnEliminar = fila.querySelector(".btn-eliminar");
+      btnEliminar.innerHTML = iconRestaurar;
+      btnEliminar.title = "Restaurar";
+
+      btnEliminar.onclick = () => {
+        factHistBody.appendChild(fila);
+        btnEliminar.innerHTML = iconEliminar;
+        btnEliminar.title = "Eliminar";
+        guardarFacturacion();
+      };
+    }
+  });
+
+  guardarFacturacion();
 });
+
+// ================= GUARDAR =================
+function guardarFacturacion() {
+  const historial = [];
+  const aprobadas = [];
+
+  function guardarFilas(filas, arr) {
+    filas.forEach(row => {
+      const c = row.querySelectorAll(".fact-cell");
+      arr.push({
+        razon: c[0]?.textContent || "",
+        origen: c[1]?.textContent || "",
+        cant: c[2]?.textContent || "",
+        unidad: c[3]?.textContent || "",
+        precio: c[4]?.textContent || "",
+        subtotal: c[5]?.textContent || "",
+        retencion: c[6]?.textContent || "",
+        pago: c[7]?.textContent || "",
+        archivos: row.dataset.archivos || "[]"
+      });
+    });
+  }
+
+  guardarFilas(factHistBody.querySelectorAll(".fact-hist-row"), historial);
+  guardarFilas(factAprobadasBody.querySelectorAll(".fact-hist-row"), aprobadas);
+
+  localStorage.setItem("factHistorial", JSON.stringify(historial));
+  localStorage.setItem("factAprobadas", JSON.stringify(aprobadas));
+}
+
+// ================= CARGAR =================
+function cargarFacturacion() {
+  const historial = JSON.parse(localStorage.getItem("factHistorial") || "[]");
+  const aprobadas = JSON.parse(localStorage.getItem("factAprobadas") || "[]");
+
+  // Iconos Font Awesome 6
+  const iconEditar = `<i class="fas fa-pencil-alt" style="color:#4caf50;"></i>`;
+  const iconEliminar = `<i class="fas fa-trash-alt" style="color:#f44336;"></i>`;
+
+  function crearFila(d, contenedor) {
+    const row = document.createElement("div");
+    row.className = "fact-hist-row";
+    row.dataset.archivos = d.archivos || "[]";
+    row.innerHTML = `
+      <div><input type="checkbox" class="fact-check"></div>
+      <div class="fact-cell">${d.razon}</div>
+      <div class="fact-cell">${d.origen}</div>
+      <div class="fact-cell">${d.cant}</div>
+      <div class="fact-cell">${d.unidad}</div>
+      <div class="fact-cell">${d.precio}</div>
+      <div class="fact-cell">${d.subtotal}</div>
+      <div class="fact-cell">${d.retencion}</div>
+      <div class="fact-cell">${d.pago}</div>
+      <div class="fact-acciones">
+        <button class="btn-editar" title="Editar">${iconEditar}</button>
+        <button class="btn-eliminar" title="Eliminar">${iconEliminar}</button>
+      </div>
+    `;
+    contenedor.appendChild(row);
+    agregarEventosFila(row);
+  }
+
+  historial.forEach(d => crearFila(d, factHistBody));
+  aprobadas.forEach(d => crearFila(d, factAprobadasBody));
+}
+
+
+
+
+// ================= INICIALIZACION =================
+document.addEventListener("DOMContentLoaded", () => {
+  cargarDirectorio();
+  cargarFacturacion();
+});
+
+
+
+
+
+
+
+
+/* ================= RESUMEN KARDEX ================= */
+
+const resumenData = [
+  {
+    semana: "Semana 01",
+    dias: ["LU", "MA", "MI", "JU", "VI"],
+    lotes: Array.from({ length: 10 }, (_, i) => i + 1),
+    libras: [
+      [12,10,14,11,9],
+      [15,12,13,14,10],
+      [8,9,10,11,12],
+      [14,15,16,14,13],
+      [9,10,11,10,9],
+      [16,14,15,16,14],
+      [10,11,12,11,10],
+      [13,14,15,13,12],
+      [11,12,13,12,11],
+      [14,13,14,15,13]
+    ],
+    facturacion: [
+      { cliente: "Cliente A", factura: "FAC-001", qq: 3 },
+      { cliente: "Cliente B", factura: "FAC-002", qq: 1 }
+    ]
+  },
+  {
+    semana: "Semana 02",
+    dias: ["LU", "MA", "MI", "JU", "VI"],
+    lotes: Array.from({ length: 10 }, (_, i) => i + 1),
+    libras: [
+      [10,11,12,10,9],
+      [14,13,12,11,10],
+      [9,10,11,10,9],
+      [15,14,15,14,13],
+      [10,11,12,11,10],
+      [14,15,16,15,14],
+      [11,12,13,12,11],
+      [13,14,14,13,12],
+      [12,13,14,13,12],
+      [15,14,15,16,14]
+    ],
+    facturacion: [
+      { cliente: "Exportadora X", factura: "FAC-010", qq: 2 }
+    ]
+  },
+  {
+    semana: "Semana 03",
+    dias: ["LU", "MA", "MI", "JU", "VI"],
+    lotes: Array.from({ length: 10 }, (_, i) => i + 1),
+    libras: [
+      [11,12,13,12,11],
+      [13,14,15,14,13],
+      [10,11,12,11,10],
+      [16,15,16,15,14],
+      [11,12,13,12,11],
+      [15,16,17,16,15],
+      [12,13,14,13,12],
+      [14,15,16,15,14],
+      [13,14,15,14,13],
+      [16,15,16,17,15]
+    ],
+    facturacion: []
+  },
+  {
+    semana: "Semana 04",
+    dias: ["LU", "MA", "MI", "JU", "VI"],
+    lotes: Array.from({ length: 10 }, (_, i) => i + 1),
+    libras: [
+      [9,10,11,10,9],
+      [12,13,14,13,12],
+      [8,9,10,9,8],
+      [14,15,16,15,14],
+      [10,11,12,11,10],
+      [15,16,17,16,15],
+      [11,12,13,12,11],
+      [13,14,15,14,13],
+      [12,13,14,13,12],
+      [14,15,16,15,14]
+    ],
+    facturacion: [
+      { cliente: "Cliente Final", factura: "FAC-020", qq: 4 }
+    ]
+  }
+];
+
+// ================= RENDER =================
+function renderResumen() {
+  const contenedor = document.querySelector(".resumen-contenedor");
+  if (!contenedor) return;
+
+  contenedor.innerHTML = "";
+
+  resumenData.forEach((sem, index) => {
+    let totalSemana = 0;
+
+    const thead = `
+      <tr>
+        <th>L</th>
+        ${sem.lotes.map(l => `<th>${l}</th>`).join("")}
+        <th>T</th>
+        <th>LAT</th>
+      </tr>
+    `;
+
+    const tbody = sem.dias.map((dia, dIndex) => {
+      let totalDia = 0;
+
+      const celdas = sem.libras.map(lote => {
+        totalDia += lote[dIndex];
+        return `<td>${lote[dIndex]}</td>`;
+      });
+
+      totalSemana += totalDia;
+
+      return `
+        <tr>
+          <td>${dia}</td>
+          ${celdas.join("")}
+          <td><strong>${totalDia}</strong></td>
+          <td>${(totalDia / 50).toFixed(1)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const facturacionHTML = sem.facturacion.length
+      ? sem.facturacion.map(f => `
+          <div class="factura-item">
+            <span>${f.cliente}</span>
+            <small>${f.factura} · ${f.qq} qq</small>
+          </div>
+        `).join("")
+      : `<small style="color:#9ca3af;font-size:11px;">Sin despachos</small>`;
+
+    contenedor.innerHTML += `
+      <div class="resumen-semana">
+        <h4>${sem.semana}</h4>
+
+        <div class="resumen-layout">
+
+          <table class="kardex-table">
+            <thead>${thead}</thead>
+            <tbody>${tbody}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="${sem.lotes.length + 1}">TOTAL SEMANA</td>
+                <td>${totalSemana}</td>
+                <td>${(totalSemana / 50).toFixed(1)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="control-seco">
+
+            <div class="control-resumen">
+
+              <div class="control-linea">
+                <span>Saldo anterior (qq)</span>
+                <input type="number" class="input-saldo-anterior" value="${index === 0 ? 0 : ""}">
+              </div>
+
+              <div class="control-linea">
+                <span>Quintales secos</span>
+                <input type="number" class="input-quintales" value="0">
+              </div>
+
+              <div class="control-linea total">
+                <span>Total disponible</span>
+                <strong class="valor-total-disponible">0.00</strong>
+              </div>
+
+              <div class="control-linea">
+                <span>Despacho</span>
+                <input type="number" class="input-despacho" value="0">
+              </div>
+
+              <div class="control-linea total">
+                <span>Saldo final</span>
+                <strong class="valor-saldo-final">0.00</strong>
+              </div>
+
+            </div>
+
+            <div class="control-facturacion">
+              <h5>Facturación</h5>
+              ${facturacionHTML}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  recalcularTodasLasSemanas();
+}
+
+// ================= KARDEX LOGICA =================
+function recalcularSemana(semanaEl) {
+  const saldoAnterior = parseFloat(semanaEl.querySelector('.input-saldo-anterior')?.value || 0);
+  const quintales = parseFloat(semanaEl.querySelector('.input-quintales')?.value || 0);
+  const despacho = parseFloat(semanaEl.querySelector('.input-despacho')?.value || 0);
+
+  const totalDisponible = saldoAnterior + quintales;
+  const saldoFinal = totalDisponible - despacho;
+
+  semanaEl.querySelector('.valor-total-disponible').textContent = totalDisponible.toFixed(2);
+  semanaEl.querySelector('.valor-saldo-final').textContent = saldoFinal.toFixed(2);
+
+  return saldoFinal;
+}
+
+function recalcularTodasLasSemanas() {
+  const semanas = document.querySelectorAll('.resumen-semana');
+  let saldoArrastrado = 0;
+
+  semanas.forEach((semana, index) => {
+    const saldoAnteriorInput = semana.querySelector('.input-saldo-anterior');
+
+    if (index === 0) {
+      saldoArrastrado = parseFloat(saldoAnteriorInput.value || 0);
+    } else {
+      saldoAnteriorInput.value = saldoArrastrado.toFixed(2);
+    }
+
+    saldoArrastrado = recalcularSemana(semana);
+  });
+}
+
+// ================= EVENTOS =================
+document.addEventListener("DOMContentLoaded", () => {
+  renderResumen();
+
+  document.querySelector(".resumen-contenedor")
+    .addEventListener("input", e => {
+      if (
+        e.target.classList.contains("input-saldo-anterior") ||
+        e.target.classList.contains("input-quintales") ||
+        e.target.classList.contains("input-despacho")
+      ) {
+        recalcularTodasLasSemanas();
+      }
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
