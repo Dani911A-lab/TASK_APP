@@ -1,88 +1,193 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TASKDC — Google Tasks Clone</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <meta charset="UTF-8">
+  <title>Módulo Ventas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- ================= ICONOS FONT AWESOME 6 ================= -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-y...==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <header class="brand">
-        <h1>DcTask</h1>
-      </header>
 
-      <div class="lists">
-        <div class="lists-header">
-          <h2>Listas</h2>
-          <button id="add-list-btn" title="Nueva lista">+</button>
-        </div>
-        <ul id="list-container" class="list-container"></ul>
+<div class="app-layout">
 
-        <!-- Contenedor de tareas archivadas (el botón se generará desde JS) -->
-        <div class="archived-container">
-          <ul id="archived-tasks"></ul>
-        </div>
+  <aside class="panel-izquierdo"></aside>
+
+  <section id="modulo-ventas">
+
+    <div class="ventas-contenedor">
+
+      <div class="ventas-tabs">
+        <button class="ventas-tab active" data-tab="directorio">DIRECTORIO</button>
+        <button class="ventas-tab" data-tab="autorizacion">AUTORIZACIÓN DE VENTA</button>
+        <button class="ventas-tab" data-tab="facturacion">FACTURACIÓN</button>
+        <button class="ventas-tab" data-tab="resumen">RESUMEN</button>
       </div>
 
-      <footer class="sidebar-footer">
-        <small>Desarrollado por Daniel Carandana</small>
-      </footer>
-    </aside>
+      <div class="ventas-vistas">
 
-    <main class="main">
-      <div class="main-header">
-        <input id="task-input" type="text" placeholder="Agregar tarea..." />
-        <button id="add-task-btn">Agregar</button>
-      </div>
+        <!-- DIRECTORIO -->
+        <div class="ventas-vista active" id="directorio">
+          <div class="directorio-contenedor">
+            <div class="directorio-form">
+              <h3>Registro Clientes</h3>
+              <label>Razón Social</label>
+              <input id="razonSocial">
+              <label>RUC</label>
+              <input id="ruc">
+              <label>Personal</label>
+              <input id="personal">
+              <label>Cargo</label>
+              <input id="cargo">
+              <label>Teléfono</label>
+              <input id="telefono">
+              <label>Email</label>
+              <input id="email">
+              <button id="guardarCliente">GUARDAR</button>
+            </div>
 
-      <section class="tasks-area">
-        <div class="tasks-header">
-          <h2 id="current-list-title">Selecciona una lista</h2>
-          <div class="tasks-controls">
-            <button id="clear-completed">Borrar completadas</button>
+            <div class="directorio-tabla-contenedor">
+              <div class="directorio-tabla">
+                <div class="tabla-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Razón Social</th>
+                        <th>RUC</th>
+                        <th>Personal</th>
+                        <th>Cargo</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaClientes"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <ul id="tasks" class="tasks"></ul>
+        <!-- AUTORIZACION -->
+        <div class="ventas-vista" id="autorizacion">
+          <h3 class="autorizacion-titulo">Autorización de Venta</h3>
+          <div class="autorizacion-layout">
+            <div class="autorizacion-registro">
+              <div class="autorizacion-headers">
+                <div>Razón Social</div>
+                <div>Origen</div>
+                <div>Cant</div>
+                <div>Unidad</div>
+                <div>Precio</div>
+                <div>Subtotal</div>
+                <div>Retenc. 1%</div>
+                <div>Pago</div>
+                <div>SEM</div>
+                <div>FECHA</div>
+              </div>
 
-        <div id="empty-state" class="empty-state">
-          <img id="empty-image" src="img/newproject.png" alt="Nueva lista" />
-          <span class="empty-message">Empecemos un nuevo proyecto ✨</span>
+              <div class="autorizacion-totales">
+                <div>Total:</div>
+                <div></div>
+                <div class="total-cant">0</div>
+                <div></div>
+                <div class="total-precio">0.00</div>
+                <div class="total-subtotal">0.00</div>
+                <div class="total-retencion">0.00</div>
+                <div class="total-pago">0.00</div>
+              </div>
+
+            </div>
+
+            <div class="autorizacion-botones">
+              <button id="nuevoRegistro">+ NUEVO REGISTRO</button>
+              <button id="generarOrden">GENERAR ORDEN</button>
+            </div>
+
+          </div>
         </div>
-      </section>
-    </main>
-  </div>
 
-  <!-- Template de lista -->
-  <template id="list-item-tpl">
-    <li class="list-item">
-      <button class="list-select" type="button"></button> <!-- aquí irá el emoji -->
-      <span class="list-name"></span>
-      <div class="list-actions">
-        <button class="rename-list" title="Renombrar">✎</button>
-        <button class="delete-list" title="Eliminar">🗑</button>
+        <!-- FACTURACION -->
+        <div class="ventas-vista" id="facturacion">
+          <div class="facturacion-contenedor">
+            <div class="facturacion-principal">
+
+              <!-- TABLA HISTORIAL REGISTROS AUTORIZACION -->
+              <div class="facturacion-tabla facturacion-tabla-historial">
+                <div class="fact-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <h3 style="margin:0;">Órdenes pendientes de facturación</h3>
+                  <button id="aprobarFacturacion" style="padding:5px 10px; cursor:pointer;">Aprobar Facturación</button>
+                </div>
+
+                <div class="tabla-headers">
+                  <div></div>
+                  <div>Razón Social</div>
+                  <div>Origen</div>
+                  <div>Cantidad</div>
+                  <div>Unidad</div>
+                  <div>Precio</div>
+                  <div>Subtotal</div>
+                  <div>Retenc. 1%</div>
+                  <div>Pago</div>
+                  <div>Acciones</div>
+                </div>
+
+                <div class="tabla-body" id="fact-historial-body"></div>
+              </div>
+
+              <!-- TABLA DE ORDENES APROBADAS -->
+              <div class="facturacion-tabla facturacion-tabla-aprobadas" style="margin-top:20px;">
+                <div class="fact-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <h3 style="margin:0;">Órdenes aprobadas</h3>
+                </div>
+
+                <div class="tabla-headers">
+                  <div></div>
+                  <div>Razón Social</div>
+                  <div>Origen</div>
+                  <div>Cantidad</div>
+                  <div>Unidad</div>
+                  <div>Precio</div>
+                  <div>Subtotal</div>
+                  <div>Retenc. 1%</div>
+                  <div>Pago</div>
+                  <div>Acciones</div>
+                </div>
+
+                <div class="tabla-body" id="fact-aprobadas-body"></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- RESUMEN -->
+        <div class="ventas-vista" id="resumen">
+          <div class="resumen-contenedor" style="overflow-y:auto; max-height:600px; padding:10px;">
+            <!-- Bloques de semanas se generarán dinámicamente desde JS -->
+          </div>
+        </div>
+
       </div>
-    </li>
-  </template>
+    </div>
+  </section>
+</div>
 
-  <!-- Template de tarea -->
-  <template id="task-item-tpl">
-    <li class="task-item" draggable="true">
-      <label class="checkbox">
-        <input type="checkbox" class="task-checkbox" />
-        <span class="checkmark"></span>
-      </label>
-      <div class="task-content" contenteditable="false" spellcheck="false"></div>
-      <div class="task-actions">
-        <button class="edit-task" title="Editar">✎</button>
-        <button class="delete-task" title="Eliminar">🗑</button>
-      </div>
-    </li>
-  </template>
+<script src="script.js"></script>
 
-  <script src="script.js"></script>
+<!-- INICIALIZACION DE ICONOS LUCIDE -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (window.lucide) {
+      lucide.replace();
+    }
+  });
+</script>
+
 </body>
 </html>
